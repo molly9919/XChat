@@ -25,6 +25,7 @@ class XChatApp:
         self.active_peer = tk.StringVar()
         self.onion_id = tk.StringVar(value="Starting Tor service…")
         self.peer_input = tk.StringVar()
+        self.peer_entry: ttk.Entry | None = None
 
         self._build_ui()
         self.root.after(150, self._poll_events)
@@ -53,7 +54,13 @@ class XChatApp:
         ttk.Label(left, text="Peers", font=("Sans", 11, "bold")).pack(anchor="w")
         peer_row = ttk.Frame(left)
         peer_row.pack(fill="x", pady=6)
-        ttk.Entry(peer_row, textvariable=self.peer_input).pack(side="left", fill="x", expand=True)
+        self.peer_entry = ttk.Entry(peer_row, textvariable=self.peer_input)
+        self.peer_entry.pack(side="left", fill="x", expand=True)
+        self.peer_entry.bind("<Return>", lambda _event: self._add_peer())
+        self.peer_entry.bind("<Control-v>", self._paste_peer_id_event)
+        self.peer_entry.bind("<Control-V>", self._paste_peer_id_event)
+        self.peer_entry.bind("<Shift-Insert>", self._paste_peer_id_event)
+        ttk.Button(peer_row, text="Paste", command=self._paste_peer_id).pack(side="left", padx=(6, 0))
         ttk.Button(peer_row, text="Add", command=self._add_peer).pack(side="left", padx=(6, 0))
 
         self.peer_list = tk.Listbox(left, bg="#f4f4f4", highlightthickness=1)
@@ -102,6 +109,33 @@ class XChatApp:
             return
         self._copy_to_clipboard(peer, "peer Tor ID")
 
+    def _paste_peer_id(self) -> None:
+        try:
+            raw = self.root.clipboard_get()
+        except tk.TclError:
+            self.status_label.configure(text="Clipboard is empty")
+            return
+        self.peer_input.set(str(raw).strip())
+        if self.peer_entry:
+            self.peer_entry.icursor("end")
+            self.peer_entry.focus_set()
+        self.status_label.configure(text="Peer ID pasted from clipboard")
+
+    def _paste_peer_id_event(self, _event: tk.Event[tk.Misc]) -> str:
+        self._paste_peer_id()
+        return "break"
+
+    @staticmethod
+    def _normalize_peer_id(peer: str) -> str:
+        value = peer.strip()
+        if not value:
+            return ""
+        value = value.replace(" ", "")
+        if ":" in value:
+            value = value.split(":", 1)[0]
+        if value.endswith(".onion"):
+            return value.lower()
+        return f"{value.lower()}.onion"
 
     def _refresh_my_id(self) -> None:
         confirmed = messagebox.askyesno(
@@ -158,11 +192,14 @@ class XChatApp:
             self.peer_list.insert("end", peer)
 
     def _add_peer(self) -> None:
-        peer = self.peer_input.get().strip()
+        peer = self._normalize_peer_id(self.peer_input.get())
         if not peer:
+            self.status_label.configure(text="Enter peer Tor ID first")
             return
         self._ensure_peer(peer)
+        self.active_peer.set(peer)
         self.peer_input.set("")
+        self.status_label.configure(text=f"Peer added: {peer}")
 
     def _on_peer_selected(self, _event: object) -> None:
         idx = self.peer_list.curselection()
