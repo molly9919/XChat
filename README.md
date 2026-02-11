@@ -46,4 +46,11 @@ Use the helper script (similar to TorChat-style packaging workflow):
 ./scripts/build_deb.sh
 ```
 
-This runs `dpkg-buildpackage` and outputs a `.deb` in the parent directory.
+If build dependencies are missing, install them automatically and build in one step:
+
+```bash
+./scripts/build_deb.sh --install-deps
+```
+
+This runs `dpkg-checkbuilddeps` first, then `dpkg-buildpackage`, and outputs a `.deb`
+in the parent directory.
