@@ -9,6 +9,7 @@ peer-to-peer chat messages.
 - Tor onion identity generated at startup (ephemeral hidden service).
 - P2P text chat using `.onion` addresses.
 - Classic split-pane UI inspired by old TorChat layouts.
+- One-click copy for your own Tor ID and selected peer Tor IDs.
 - Debian packaging metadata and a helper script to build `.deb` files.
 
 ## Requirements

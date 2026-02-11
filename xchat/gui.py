@@ -40,6 +40,7 @@ class XChatApp:
         top.pack(fill="x")
         ttk.Label(top, text="Your Tor ID:", font=("Sans", 11, "bold")).pack(side="left")
         ttk.Label(top, textvariable=self.onion_id, foreground="#204a87").pack(side="left", padx=8)
+        ttk.Button(top, text="Copy My ID", command=self._copy_my_id).pack(side="left", padx=(8, 0))
 
         body = ttk.Frame(self.root, padding=(10, 0, 10, 10))
         body.pack(fill="both", expand=True)
@@ -57,6 +58,8 @@ class XChatApp:
         self.peer_list = tk.Listbox(left, bg="#f4f4f4", highlightthickness=1)
         self.peer_list.pack(fill="both", expand=True)
         self.peer_list.bind("<<ListboxSelect>>", self._on_peer_selected)
+        self.peer_list.bind("<Double-1>", lambda _event: self._copy_selected_peer_id())
+        ttk.Button(left, text="Copy Peer ID", command=self._copy_selected_peer_id).pack(fill="x", pady=(6, 0))
 
         right = ttk.Frame(body)
         right.pack(side="left", fill="both", expand=True, padx=(10, 0))
@@ -73,6 +76,30 @@ class XChatApp:
 
         self.status_label = ttk.Label(self.root, text="Ready", relief="sunken", anchor="w")
         self.status_label.pack(fill="x", side="bottom")
+
+    def _copy_to_clipboard(self, value: str, label: str) -> None:
+        self.root.clipboard_clear()
+        self.root.clipboard_append(value)
+        self.root.update_idletasks()
+        self.status_label.configure(text=f"Copied {label}: {value}")
+
+    def _copy_my_id(self) -> None:
+        my_id = self.onion_id.get().strip()
+        if not my_id or my_id.lower().startswith("starting"):
+            self.status_label.configure(text="Your Tor ID is not ready yet")
+            return
+        self._copy_to_clipboard(my_id, "your Tor ID")
+
+    def _copy_selected_peer_id(self) -> None:
+        peer = self.active_peer.get().strip()
+        if not peer:
+            idx = self.peer_list.curselection()
+            if idx:
+                peer = self.peer_list.get(idx[0]).strip()
+        if not peer:
+            messagebox.showwarning("No peer selected", "Select a peer ID to copy.")
+            return
+        self._copy_to_clipboard(peer, "peer Tor ID")
 
     def _start_node(self) -> None:
         try:
