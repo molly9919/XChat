@@ -14,10 +14,11 @@ peer-to-peer chat messages.
 ## Requirements
 
 - Python 3.9+
-- Tor daemon with:
-  - `SocksPort` enabled (default `9050`)
-  - `ControlPort` enabled (default `9051`)
-  - Authentication configured (`CookieAuthentication 1` is enough on most systems)
+- Tor executable available on the system (`tor` package) **or** custom tor path via
+  `XCHAT_TOR_BINARY`.
+
+XChat starts and manages its own private Tor process by default (TorChat-style), so
+no system Tor service needs to be running.
 
 Install runtime dependencies:
 
@@ -36,6 +37,9 @@ menu as **XChat (Tor Messenger)**.
 
 Environment overrides:
 
+- `XCHAT_PRIVATE_TOR` (`1`/`0`, default `1`)
+- `XCHAT_TOR_BINARY`
+- `XCHAT_TOR_DATA_DIR`
 - `XCHAT_TOR_SOCKS_HOST` / `XCHAT_TOR_SOCKS_PORT`
 - `XCHAT_TOR_CONTROL_HOST` / `XCHAT_TOR_CONTROL_PORT`
 - `XCHAT_TOR_CONTROL_PASSWORD`

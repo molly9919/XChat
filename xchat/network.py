@@ -1,19 +1,31 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+from pathlib import Path
+import shutil
 import socket
+from subprocess import Popen
 import threading
 from typing import Any
 
 import socks
 from stem import SocketError
 from stem.control import Controller
+from stem.process import launch_tor_with_config
 
 from .config import TorConfig
 from .protocol import decode_message, encode_message
 
 MessageCallback = Callable[[str, str], None]
 StatusCallback = Callable[[str], None]
+
+
+def _pick_free_port(host: str = "127.0.0.1") -> int:
+    probe = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    probe.bind((host, 0))
+    port = probe.getsockname()[1]
+    probe.close()
+    return port
 
 
 class TorChatNode:
@@ -28,9 +40,12 @@ class TorChatNode:
         self._conn_lock = threading.Lock()
         self._controller: Controller | None = None
         self._service: Any = None
+        self._tor_process: Popen[bytes] | None = None
         self.own_onion: str | None = None
 
     def start(self) -> None:
+        if self.config.launch_private_tor:
+            self._start_private_tor()
         self._start_listener()
         self._publish_onion_service()
 
@@ -46,6 +61,53 @@ class TorChatNode:
             self._controller.remove_ephemeral_hidden_service(self._service.service_id)
         if self._controller:
             self._controller.close()
+        if self._tor_process:
+            self._tor_process.terminate()
+            self._tor_process.wait(timeout=10)
+
+    def _resolve_tor_binary(self) -> str:
+        if self.config.tor_binary:
+            return self.config.tor_binary
+
+        bundled = Path(__file__).resolve().parent / "bin" / "tor"
+        if bundled.exists() and bundled.is_file():
+            return str(bundled)
+
+        system_tor = shutil.which("tor")
+        if system_tor:
+            return system_tor
+
+        raise RuntimeError(
+            "Tor executable was not found. Install tor or set XCHAT_TOR_BINARY to a tor binary path."
+        )
+
+    def _start_private_tor(self) -> None:
+        self.config.socks_port = self.config.socks_port or _pick_free_port(self.config.socks_host)
+        self.config.control_port = self.config.control_port or _pick_free_port(self.config.control_host)
+
+        data_dir = Path(self.config.tor_data_dir)
+        data_dir.mkdir(parents=True, exist_ok=True)
+
+        tor_binary = self._resolve_tor_binary()
+        self.on_status("Starting private Tor process…")
+
+        self._tor_process = launch_tor_with_config(
+            tor_cmd=tor_binary,
+            config={
+                "SocksPort": f"{self.config.socks_host}:{self.config.socks_port}",
+                "ControlPort": f"{self.config.control_host}:{self.config.control_port}",
+                "CookieAuthentication": "1",
+                "DataDirectory": str(data_dir),
+                "AvoidDiskWrites": "1",
+            },
+            take_ownership=True,
+            completion_percent=100,
+            init_msg_handler=lambda line: self.on_status(f"Tor: {line}"),
+        )
+        self.on_status(
+            f"Private Tor ready (SOCKS {self.config.socks_host}:{self.config.socks_port}, "
+            f"Control {self.config.control_host}:{self.config.control_port})"
+        )
 
     def _start_listener(self) -> None:
         listener = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -79,7 +141,8 @@ class TorChatNode:
             self.on_status(f"Onion service ready: {self.own_onion}:{self.config.virtual_port}")
         except SocketError as exc:
             raise RuntimeError(
-                "Could not connect to Tor control port. Make sure Tor is installed and control port is enabled."
+                "Could not connect to Tor control port. "
+                "If private mode is disabled, make sure Tor is running and control port is enabled."
             ) from exc
 
     def _accept_loop(self) -> None:
