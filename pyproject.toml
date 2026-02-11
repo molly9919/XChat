@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "xchat-tor"
+version = "0.1.0"
+description = "Tor-based instant messenger inspired by TorChat"
+readme = "README.md"
+requires-python = ">=3.9"
+authors = [{name = "XChat Contributors"}]
+license = {text = "MIT"}
+dependencies = [
+  "stem>=1.8.2",
+  "PySocks>=1.7.1",
+]
+
+[project.scripts]
+xchat = "xchat.main:main"
+
+[tool.setuptools]
+packages = ["xchat"]
