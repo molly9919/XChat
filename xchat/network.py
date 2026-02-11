@@ -47,7 +47,7 @@ class TorChatNode:
         if self.config.launch_private_tor:
             self._start_private_tor()
         self._start_listener()
-        self._publish_onion_service()
+        self._publish_onion_service(force_new=False)
 
     def stop(self) -> None:
         self._stop.set()
@@ -64,6 +64,14 @@ class TorChatNode:
         if self._tor_process:
             self._tor_process.terminate()
             self._tor_process.wait(timeout=10)
+
+    def refresh_identity(self) -> str:
+        if not self._listener:
+            raise RuntimeError("Node is not started")
+        self._publish_onion_service(force_new=True)
+        if not self.own_onion:
+            raise RuntimeError("Failed to refresh onion ID")
+        return self.own_onion
 
     def _resolve_tor_binary(self) -> str:
         if self.config.tor_binary:
@@ -122,20 +130,73 @@ class TorChatNode:
         accept_thread.start()
         self._threads.append(accept_thread)
 
-    def _publish_onion_service(self) -> None:
+    def _ensure_controller(self) -> Controller:
+        if self._controller:
+            return self._controller
+        controller = Controller.from_port(address=self.config.control_host, port=self.config.control_port)
+        if self.config.control_password:
+            controller.authenticate(password=self.config.control_password)
+        else:
+            controller.authenticate()
+        self._controller = controller
+        return controller
+
+    def _load_saved_private_key(self) -> tuple[str, str] | None:
+        key_file = Path(self.config.onion_key_file)
+        if not key_file.exists():
+            return None
+        raw = key_file.read_text(encoding="utf-8").strip()
+        if ":" not in raw:
+            return None
+        key_type, key_value = raw.split(":", 1)
+        if not key_type or not key_value:
+            return None
+        return key_type, key_value
+
+    def _save_private_key(self, key_type: str, key_value: str) -> None:
+        key_file = Path(self.config.onion_key_file)
+        key_file.parent.mkdir(parents=True, exist_ok=True)
+        key_file.write_text(f"{key_type}:{key_value}\n", encoding="utf-8")
+
+    def _clear_private_key(self) -> None:
+        key_file = Path(self.config.onion_key_file)
+        if key_file.exists():
+            key_file.unlink()
+
+    def _publish_onion_service(self, force_new: bool) -> None:
         if not self._listener:
             raise RuntimeError("Listener has not been started")
         local_port = self._listener.getsockname()[1]
         try:
-            controller = Controller.from_port(address=self.config.control_host, port=self.config.control_port)
-            if self.config.control_password:
-                controller.authenticate(password=self.config.control_password)
+            controller = self._ensure_controller()
+            if self._service:
+                controller.remove_ephemeral_hidden_service(self._service.service_id)
+                self._service = None
+
+            if force_new:
+                self._clear_private_key()
+
+            saved = self._load_saved_private_key()
+            if saved:
+                key_type, key_value = saved
+                service = controller.create_ephemeral_hidden_service(
+                    {self.config.virtual_port: local_port},
+                    key_type=key_type,
+                    key_content=key_value,
+                    await_publication=True,
+                )
             else:
-                controller.authenticate()
-            service = controller.create_ephemeral_hidden_service(
-                {self.config.virtual_port: local_port}, await_publication=True
-            )
-            self._controller = controller
+                service = controller.create_ephemeral_hidden_service(
+                    {self.config.virtual_port: local_port},
+                    key_type="NEW",
+                    key_content="ED25519-V3",
+                    await_publication=True,
+                )
+                private_key = getattr(service, "private_key", None)
+                private_key_type = getattr(service, "private_key_type", None)
+                if private_key and private_key_type:
+                    self._save_private_key(private_key_type, private_key)
+
             self._service = service
             self.own_onion = f"{service.service_id}.onion"
             self.on_status(f"Onion service ready: {self.own_onion}:{self.config.virtual_port}")

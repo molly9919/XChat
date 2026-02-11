@@ -6,7 +6,7 @@ peer-to-peer chat messages.
 
 ## Features
 
-- Tor onion identity generated at startup (ephemeral hidden service).
+- Persistent Tor ID (same onion each launch) with manual **Refresh ID** option when you want a new one.
 - P2P text chat using `.onion` addresses.
 - Classic split-pane UI inspired by old TorChat layouts.
 - One-click copy for your own Tor ID and selected peer Tor IDs.
@@ -41,6 +41,7 @@ Environment overrides:
 - `XCHAT_PRIVATE_TOR` (`1`/`0`, default `1`)
 - `XCHAT_TOR_BINARY`
 - `XCHAT_TOR_DATA_DIR`
+- `XCHAT_ONION_KEY_FILE` (where persistent onion private key is stored)
 - `XCHAT_TOR_SOCKS_HOST` / `XCHAT_TOR_SOCKS_PORT`
 - `XCHAT_TOR_CONTROL_HOST` / `XCHAT_TOR_CONTROL_PORT`
 - `XCHAT_TOR_CONTROL_PASSWORD`

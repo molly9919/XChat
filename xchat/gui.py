@@ -41,6 +41,7 @@ class XChatApp:
         ttk.Label(top, text="Your Tor ID:", font=("Sans", 11, "bold")).pack(side="left")
         ttk.Label(top, textvariable=self.onion_id, foreground="#204a87").pack(side="left", padx=8)
         ttk.Button(top, text="Copy My ID", command=self._copy_my_id).pack(side="left", padx=(8, 0))
+        ttk.Button(top, text="Refresh ID", command=self._refresh_my_id).pack(side="left", padx=(6, 0))
 
         body = ttk.Frame(self.root, padding=(10, 0, 10, 10))
         body.pack(fill="both", expand=True)
@@ -100,6 +101,22 @@ class XChatApp:
             messagebox.showwarning("No peer selected", "Select a peer ID to copy.")
             return
         self._copy_to_clipboard(peer, "peer Tor ID")
+
+
+    def _refresh_my_id(self) -> None:
+        confirmed = messagebox.askyesno(
+            "Refresh Tor ID",
+            "Generate a brand new Tor ID and make it permanent until next refresh?"
+        )
+        if not confirmed:
+            return
+        try:
+            new_id = self.node.refresh_identity()
+            self.onion_id.set(new_id)
+            self.status_label.configure(text=f"New Tor ID created: {new_id}")
+        except Exception as exc:
+            messagebox.showerror("Refresh failed", str(exc))
+            self.status_label.configure(text=f"Refresh failed: {exc}")
 
     def _start_node(self) -> None:
         try:
