@@ -31,6 +31,9 @@ python3 -m pip install -e .
 xchat
 ```
 
+When installed from the Debian package, the app is also available in the desktop
+menu as **XChat (Tor Messenger)**.
+
 Environment overrides:
 
 - `XCHAT_TOR_SOCKS_HOST` / `XCHAT_TOR_SOCKS_PORT`
