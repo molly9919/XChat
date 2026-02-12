@@ -29,6 +29,7 @@ class XChatApp:
         self.peer_entry: ttk.Entry | None = None
         self.peer_tree: ttk.Treeview | None = None
         self.peer_status: dict[str, bool] = {}
+        self.peer_context_menu: tk.Menu | None = None
 
         self._load_icons()
         self._build_ui()
@@ -130,6 +131,11 @@ class XChatApp:
         self.peer_entry.bind("<Control-v>", self._paste_peer_id_event)
         self.peer_entry.bind("<Control-V>", self._paste_peer_id_event)
         self.peer_entry.bind("<Shift-Insert>", self._paste_peer_id_event)
+        self.peer_entry.bind("<Button-3>", self._show_peer_context_menu)
+        self.peer_entry.bind("<Button-2>", self._show_peer_context_menu)
+        self.peer_context_menu = tk.Menu(self.root, tearoff=0)
+        self.peer_context_menu.add_command(label="Paste", command=self._paste_peer_id)
+        self.peer_context_menu.add_command(label="Add", command=self._add_peer)
         ttk.Button(peer_row, text="Paste", command=self._paste_peer_id).pack(side="left", padx=(6, 0))
         ttk.Button(peer_row, text="Add", command=self._add_peer).pack(side="left", padx=(6, 0))
 
@@ -214,6 +220,13 @@ class XChatApp:
         self._paste_peer_id()
         return "break"
 
+    def _show_peer_context_menu(self, event: tk.Event[tk.Misc]) -> str:
+        if self.peer_context_menu is None:
+            return "break"
+        self.peer_context_menu.tk_popup(event.x_root, event.y_root)
+        self.peer_context_menu.grab_release()
+        return "break"
+
     @staticmethod
     def _normalize_peer_id(peer: str) -> str:
         value = peer.strip()
@@ -226,6 +239,10 @@ class XChatApp:
             return value.lower()
         return f"{value.lower()}.onion"
 
+    @classmethod
+    def _canonical_peer_id(cls, peer: str) -> str:
+        return cls._normalize_peer_id(peer)
+
     def _update_peer_icon(self, peer: str) -> None:
         if self.peer_tree is None or peer not in self.peer_status:
             return
@@ -233,10 +250,13 @@ class XChatApp:
         self.peer_tree.item(peer, image=icon)
 
     def _set_peer_online(self, peer: str, online: bool) -> None:
-        added = self._ensure_peer(peer, online=online)
+        canonical = self._canonical_peer_id(peer)
+        if not canonical:
+            return
+        added = self._ensure_peer(canonical, online=online)
         if not added:
-            self.peer_status[peer] = online
-            self._update_peer_icon(peer)
+            self.peer_status[canonical] = online
+            self._update_peer_icon(canonical)
         self._persist_peers()
 
     def _remove_selected_peer(self) -> None:
@@ -340,7 +360,7 @@ class XChatApp:
         self.status_label.configure(text=f"Active peer: {peer}")
 
     def _send_message(self) -> None:
-        peer = self.active_peer.get().strip()
+        peer = self._canonical_peer_id(self.active_peer.get().strip())
         text = self.message_entry.get().strip()
         if not peer:
             messagebox.showwarning("No peer selected", "Choose a peer from the left list before sending.")
