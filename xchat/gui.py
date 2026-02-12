@@ -143,8 +143,14 @@ class XChatApp:
         self.peer_tree.pack(fill="both", expand=True)
         self.peer_tree.bind("<<TreeviewSelect>>", self._on_peer_selected)
         self.peer_tree.bind("<Delete>", lambda _event: self._remove_selected_peer())
-        ttk.Button(left, text="Copy Peer ID", command=self._copy_selected_peer_id).pack(fill="x", pady=(6, 0))
-        ttk.Button(left, text="Remove Peer", command=self._remove_selected_peer).pack(fill="x", pady=(6, 0))
+        peer_actions = ttk.Frame(left)
+        peer_actions.pack(fill="x", pady=(6, 0))
+        ttk.Button(peer_actions, text="Copy Peer ID", command=self._copy_selected_peer_id).pack(
+            side="left", fill="x", expand=True
+        )
+        ttk.Button(peer_actions, text="Delete Peer ID", command=self._remove_selected_peer).pack(
+            side="left", fill="x", expand=True, padx=(6, 0)
+        )
 
         right = ttk.Frame(body)
         right.pack(side="left", fill="both", expand=True, padx=(10, 0))
