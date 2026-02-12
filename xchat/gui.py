@@ -6,6 +6,7 @@ from tkinter import ttk, messagebox
 
 from .config import TorConfig
 from .network import TorChatNode
+from .state import load_peers, save_peers
 
 
 class XChatApp:
@@ -28,6 +29,7 @@ class XChatApp:
         self.peer_entry: ttk.Entry | None = None
 
         self._build_ui()
+        self._load_saved_peers()
         self.root.after(150, self._poll_events)
         self.root.after(20, self._start_node)
 
@@ -67,7 +69,9 @@ class XChatApp:
         self.peer_list.pack(fill="both", expand=True)
         self.peer_list.bind("<<ListboxSelect>>", self._on_peer_selected)
         self.peer_list.bind("<Double-1>", lambda _event: self._copy_selected_peer_id())
+        self.peer_list.bind("<Delete>", lambda _event: self._remove_selected_peer())
         ttk.Button(left, text="Copy Peer ID", command=self._copy_selected_peer_id).pack(fill="x", pady=(6, 0))
+        ttk.Button(left, text="Remove Peer", command=self._remove_selected_peer).pack(fill="x", pady=(6, 0))
 
         right = ttk.Frame(body)
         right.pack(side="left", fill="both", expand=True, padx=(10, 0))
@@ -84,6 +88,14 @@ class XChatApp:
 
         self.status_label = ttk.Label(self.root, text="Ready", relief="sunken", anchor="w")
         self.status_label.pack(fill="x", side="bottom")
+
+    def _load_saved_peers(self) -> None:
+        for peer in load_peers(self.node.config.peers_file):
+            self._ensure_peer(peer)
+
+    def _persist_peers(self) -> None:
+        peers = list(self.peer_list.get(0, "end"))
+        save_peers(self.node.config.peers_file, peers)
 
     def _copy_to_clipboard(self, value: str, label: str) -> None:
         self.root.clipboard_clear()
@@ -137,6 +149,18 @@ class XChatApp:
             return value.lower()
         return f"{value.lower()}.onion"
 
+    def _remove_selected_peer(self) -> None:
+        idx = self.peer_list.curselection()
+        if not idx:
+            messagebox.showwarning("No peer selected", "Select a peer to remove.")
+            return
+        peer = self.peer_list.get(idx[0])
+        self.peer_list.delete(idx[0])
+        if self.active_peer.get() == peer:
+            self.active_peer.set("")
+        self._persist_peers()
+        self.status_label.configure(text=f"Peer removed: {peer}")
+
     def _refresh_my_id(self) -> None:
         confirmed = messagebox.askyesno(
             "Refresh Tor ID",
@@ -175,7 +199,8 @@ class XChatApp:
                 break
             if event == "msg":
                 self._append_chat(f"{who}: {payload}")
-                self._ensure_peer(who)
+                if self._ensure_peer(who):
+                    self._persist_peers()
             else:
                 self.status_label.configure(text=payload)
         self.root.after(150, self._poll_events)
@@ -186,10 +211,12 @@ class XChatApp:
         self.chat_box.see("end")
         self.chat_box.configure(state="disabled")
 
-    def _ensure_peer(self, peer: str) -> None:
+    def _ensure_peer(self, peer: str) -> bool:
         items = self.peer_list.get(0, "end")
         if peer not in items:
             self.peer_list.insert("end", peer)
+            return True
+        return False
 
     def _add_peer(self) -> None:
         peer = self._normalize_peer_id(self.peer_input.get())
@@ -199,6 +226,7 @@ class XChatApp:
         self._ensure_peer(peer)
         self.active_peer.set(peer)
         self.peer_input.set("")
+        self._persist_peers()
         self.status_label.configure(text=f"Peer added: {peer}")
 
     def _on_peer_selected(self, _event: object) -> None:

@@ -26,6 +26,7 @@ class TorConfig:
     tor_binary: str | None = None
     tor_data_dir: str = str(Path.home() / ".local" / "share" / "xchat" / "tor")
     onion_key_file: str = str(Path.home() / ".local" / "share" / "xchat" / "onion_private_key")
+    peers_file: str = str(Path.home() / ".local" / "share" / "xchat" / "peers.json")
 
     @classmethod
     def from_env(cls) -> "TorConfig":
@@ -46,5 +47,8 @@ class TorConfig:
             ),
             onion_key_file=os.environ.get(
                 "XCHAT_ONION_KEY_FILE", str(Path.home() / ".local" / "share" / "xchat" / "onion_private_key")
+            ),
+            peers_file=os.environ.get(
+                "XCHAT_PEERS_FILE", str(Path.home() / ".local" / "share" / "xchat" / "peers.json")
             ),
         )

@@ -11,6 +11,7 @@ peer-to-peer chat messages.
 - Classic split-pane UI inspired by old TorChat layouts.
 - One-click copy for your own Tor ID and selected peer Tor IDs.
 - Reliable peer ID input with Paste button and Ctrl+V/Shift+Insert support.
+- Saved peer list across restarts, with manual remove option (button or Delete key).
 - Debian packaging metadata and a helper script to build `.deb` files.
 
 ## Requirements
@@ -43,6 +44,7 @@ Environment overrides:
 - `XCHAT_TOR_BINARY`
 - `XCHAT_TOR_DATA_DIR`
 - `XCHAT_ONION_KEY_FILE` (where persistent onion private key is stored)
+- `XCHAT_PEERS_FILE` (where saved peer list is stored)
 - `XCHAT_TOR_SOCKS_HOST` / `XCHAT_TOR_SOCKS_PORT`
 - `XCHAT_TOR_CONTROL_HOST` / `XCHAT_TOR_CONTROL_PORT`
 - `XCHAT_TOR_CONTROL_PASSWORD`
