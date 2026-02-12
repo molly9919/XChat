@@ -10,7 +10,7 @@ peer-to-peer chat messages.
 - P2P text chat using `.onion` addresses.
 - Classic split-pane UI inspired by old TorChat layouts.
 - One-click copy for your own Tor ID and selected peer Tor IDs.
-- Reliable peer ID input with Paste button and Ctrl+V/Shift+Insert support.
+- Reliable peer ID input with Add button (auto-uses clipboard when field is empty), right-click menu, and Ctrl+V/Shift+Insert support.
 - Saved peer list across restarts, with manual remove option (button or Delete key).
 - Debian packaging metadata and a helper script to build `.deb` files.
 

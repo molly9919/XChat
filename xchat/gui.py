@@ -135,9 +135,10 @@ class XChatApp:
         self.peer_entry.bind("<Button-2>", self._show_peer_context_menu)
         self.peer_context_menu = tk.Menu(self.root, tearoff=0)
         self.peer_context_menu.add_command(label="Paste", command=self._paste_peer_id)
-        self.peer_context_menu.add_command(label="Add", command=self._add_peer)
-        ttk.Button(peer_row, text="Paste", command=self._paste_peer_id).pack(side="left", padx=(6, 0))
-        ttk.Button(peer_row, text="Add", command=self._add_peer).pack(side="left", padx=(6, 0))
+        self.peer_context_menu.add_command(label="Add", command=self._add_peer_from_entry_or_clipboard)
+        ttk.Button(peer_row, text="Add", command=self._add_peer_from_entry_or_clipboard).pack(
+            side="left", padx=(6, 0)
+        )
 
         self.peer_tree = ttk.Treeview(left, columns=(), show="tree", selectmode="browse", height=20)
         self.peer_tree.pack(fill="both", expand=True)
@@ -225,6 +226,15 @@ class XChatApp:
     def _paste_peer_id_event(self, _event: tk.Event[tk.Misc]) -> str:
         self._paste_peer_id()
         return "break"
+
+    def _add_peer_from_entry_or_clipboard(self) -> None:
+        if not self.peer_input.get().strip():
+            try:
+                self.peer_input.set(str(self.root.clipboard_get()).strip())
+            except tk.TclError:
+                self.status_label.configure(text="Enter peer Tor ID first")
+                return
+        self._add_peer()
 
     def _show_peer_context_menu(self, event: tk.Event[tk.Misc]) -> str:
         if self.peer_context_menu is None:
