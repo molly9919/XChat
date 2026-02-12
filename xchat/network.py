@@ -234,6 +234,7 @@ class TorChatNode:
         thread.start()
         self._threads.append(thread)
         self.on_status(f"Connected to peer {address}")
+        self.on_status(f"Peer online: {address}")
 
     def send_chat(self, onion: str, text: str) -> None:
         address = onion.removesuffix(".onion") + ".onion"

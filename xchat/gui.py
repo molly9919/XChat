@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import queue
+import threading
 import tkinter as tk
 from tkinter import ttk, messagebox
 
@@ -308,9 +309,24 @@ class XChatApp:
             self.node.start()
             if self.node.own_onion:
                 self.onion_id.set(self.node.own_onion)
+            self._probe_saved_peers()
         except Exception as exc:
             messagebox.showerror("Tor startup failed", str(exc))
             self.status_label.configure(text=f"Error: {exc}")
+
+    def _probe_saved_peers(self) -> None:
+        peers = sorted(self.peer_status.keys())
+        if not peers:
+            return
+        self.status_label.configure(text="Checking peer online status…")
+        for peer in peers:
+            threading.Thread(target=self._probe_one_peer, args=(peer,), daemon=True).start()
+
+    def _probe_one_peer(self, peer: str) -> None:
+        try:
+            self.node.connect_peer(peer)
+        except Exception:
+            self.events.put(("status", "", f"Connection dropped: {peer}"))
 
     def _on_message(self, sender: str, text: str) -> None:
         self.events.put(("msg", sender, text))
