@@ -1,0 +1,13 @@
+Source: xchat-tor
+Section: net
+Priority: optional
+Maintainer: XChat Contributors <noreply@example.com>
+Build-Depends: debhelper-compat (= 13), dh-python, pybuild-plugin-pyproject, python3-all, python3-setuptools
+Standards-Version: 4.6.2
+Rules-Requires-Root: no
+
+Package: xchat-tor
+Architecture: all
+Depends: ${misc:Depends}, ${python3:Depends}, python3-tk, tor
+Description: Tor-based instant messenger inspired by TorChat
+ A simple Python3 GUI messenger that routes communication over Tor onion services.
