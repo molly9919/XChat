@@ -6,6 +6,7 @@ import shutil
 import socket
 from subprocess import Popen
 import threading
+import time
 from typing import Any
 
 import socks
@@ -29,6 +30,9 @@ def _pick_free_port(host: str = "127.0.0.1") -> int:
 
 
 class TorChatNode:
+    HEARTBEAT_INTERVAL = 2.0
+    PEER_TIMEOUT = 8.0
+
     def __init__(self, config: TorConfig, on_message: MessageCallback, on_status: StatusCallback):
         self.config = config
         self.on_message = on_message
@@ -245,25 +249,88 @@ class TorChatNode:
 
     def _connection_loop(self, conn: socket.socket, peer_hint: str) -> None:
         peer_id = peer_hint
-        file = conn.makefile("r", encoding="utf-8", newline="\n")
+        conn.settimeout(1.0)
+        recv_buffer = ""
+        last_seen = time.monotonic()
+        last_ping = 0.0
+        announced_online = False
+
+        def announce_online(current_peer: str) -> None:
+            nonlocal announced_online
+            if not announced_online:
+                self.on_status(f"Peer online: {current_peer}")
+                announced_online = True
+
         try:
-            for line in file:
-                message = decode_message(line.strip())
-                if not message:
+            while not self._stop.is_set():
+                now = time.monotonic()
+                if now - last_ping >= self.HEARTBEAT_INTERVAL:
+                    try:
+                        conn.sendall(encode_message("ping", self.own_onion or "unknown", ""))
+                        last_ping = now
+                    except OSError:
+                        self.on_status(f"Connection dropped: {peer_id}")
+                        break
+
+                try:
+                    chunk = conn.recv(4096)
+                except TimeoutError:
+                    if announced_online and (time.monotonic() - last_seen) > self.PEER_TIMEOUT:
+                        self.on_status(f"Connection dropped: {peer_id}")
+                        break
                     continue
-                peer_id = message.sender
-                if message.kind == "hello":
-                    with self._conn_lock:
-                        self._connections[peer_id] = conn
-                    self.on_status(f"Peer online: {peer_id}")
-                    continue
-                if message.kind == "msg":
-                    self.on_message(peer_id, message.text)
-        except OSError:
-            self.on_status(f"Connection dropped: {peer_id}")
+                except OSError:
+                    self.on_status(f"Connection dropped: {peer_id}")
+                    break
+
+                if not chunk:
+                    self.on_status(f"Connection dropped: {peer_id}")
+                    break
+
+                recv_buffer += chunk.decode("utf-8", errors="replace")
+                while "\n" in recv_buffer:
+                    line, recv_buffer = recv_buffer.split("\n", 1)
+                    message = decode_message(line.strip())
+                    if not message:
+                        continue
+
+                    last_seen = time.monotonic()
+                    candidate = message.sender.removesuffix(".onion") + ".onion"
+
+                    if message.kind == "hello":
+                        peer_id = candidate
+                        with self._conn_lock:
+                            self._connections[peer_id] = conn
+                        announce_online(peer_id)
+                        try:
+                            conn.sendall(encode_message("hello", self.own_onion or "unknown", ""))
+                        except OSError:
+                            self.on_status(f"Connection dropped: {peer_id}")
+                            break
+                        continue
+
+                    if message.kind == "ping":
+                        peer_id = candidate
+                        announce_online(peer_id)
+                        try:
+                            conn.sendall(encode_message("pong", self.own_onion or "unknown", ""))
+                        except OSError:
+                            self.on_status(f"Connection dropped: {peer_id}")
+                            break
+                        continue
+
+                    if message.kind == "pong":
+                        peer_id = candidate
+                        announce_online(peer_id)
+                        continue
+
+                    if message.kind == "msg":
+                        peer_id = candidate
+                        announce_online(peer_id)
+                        self.on_message(peer_id, message.text)
         finally:
             with self._conn_lock:
                 if self._connections.get(peer_id) is conn:
                     self._connections.pop(peer_id, None)
             conn.close()
-            file.close()
+
