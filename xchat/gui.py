@@ -157,8 +157,14 @@ class XChatApp:
         self.status_label.pack(fill="x", side="bottom")
 
     def _load_saved_peers(self) -> None:
+        loaded = False
         for peer in load_peers(self.node.config.peers_file):
-            self._ensure_peer(peer, online=False)
+            normalized = self._normalize_peer_id(peer)
+            if normalized:
+                self._ensure_peer(normalized, online=False)
+                loaded = True
+        if loaded:
+            self._persist_peers()
 
     def _persist_peers(self) -> None:
         peers = sorted(self.peer_status.keys())
@@ -314,14 +320,17 @@ class XChatApp:
         if not peer:
             self.status_label.configure(text="Enter peer Tor ID first")
             return
-        self._ensure_peer(peer, online=False)
+        added = self._ensure_peer(peer, online=False)
         self.active_peer.set(peer)
         if self.peer_tree is not None:
             self.peer_tree.selection_set(peer)
             self.peer_tree.focus(peer)
         self.peer_input.set("")
         self._persist_peers()
-        self.status_label.configure(text=f"Peer added: {peer}")
+        if added:
+            self.status_label.configure(text=f"Peer added: {peer}")
+        else:
+            self.status_label.configure(text=f"Peer already exists: {peer}")
 
     def _on_peer_selected(self, _event: object) -> None:
         peer = self._selected_peer()
@@ -346,4 +355,5 @@ class XChatApp:
             self.status_label.configure(text=f"Send failed: {exc}")
 
     def shutdown(self) -> None:
+        self._persist_peers()
         self.node.stop()
