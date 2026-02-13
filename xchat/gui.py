@@ -120,7 +120,7 @@ class XChatApp:
         ttk.Label(top, textvariable=self.onion_id, foreground="#204a87").pack(side="left", padx=8)
         ttk.Button(top, text="Copy My ID", command=self._copy_my_id).pack(side="left", padx=(8, 0))
         ttk.Button(top, text="Refresh ID", command=self._refresh_my_id).pack(side="left", padx=(6, 0))
-        ttk.Button(top, text="Delete messages", command=self._delete_all_messages).pack(side="left", padx=(6, 0))
+        ttk.Button(top, text="Delete history", command=self._delete_all_messages).pack(side="left", padx=(6, 0))
 
         body = ttk.Frame(self.root, padding=(10, 0, 10, 10))
         body.pack(fill="both", expand=True)
@@ -325,7 +325,7 @@ class XChatApp:
 
     def _delete_all_messages(self) -> None:
         confirmed = messagebox.askyesno(
-            "Delete messages",
+            "Delete history",
             "Delete all conversations, queued offline messages, and cached message data from this computer?",
         )
         if not confirmed:
