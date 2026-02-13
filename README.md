@@ -12,6 +12,8 @@ peer-to-peer chat messages.
 - One-click copy for your own Tor ID and selected peer Tor IDs.
 - Reliable peer ID input with Add button (auto-uses clipboard when field is empty), right-click menu, and Ctrl+V/Shift+Insert support.
 - Saved peer list across restarts, with manual remove option (button or Delete key).
+- Offline message queue: messages sent to offline peers are delivered automatically when they come online.
+- One-click **Delete messages** button to wipe local chat history and cached/offline messages from disk.
 - Debian packaging metadata and a helper script to build `.deb` files.
 
 ## Requirements
@@ -45,6 +47,7 @@ Environment overrides:
 - `XCHAT_TOR_DATA_DIR`
 - `XCHAT_ONION_KEY_FILE` (where persistent onion private key is stored)
 - `XCHAT_PEERS_FILE` (where saved peer list is stored)
+- `XCHAT_MESSAGE_CACHE_FILE` (where conversations + offline queue cache are stored)
 - `XCHAT_TOR_SOCKS_HOST` / `XCHAT_TOR_SOCKS_PORT`
 - `XCHAT_TOR_CONTROL_HOST` / `XCHAT_TOR_CONTROL_PORT`
 - `XCHAT_TOR_CONTROL_PASSWORD`

@@ -3,11 +3,11 @@ from __future__ import annotations
 import queue
 import threading
 import tkinter as tk
-from tkinter import ttk, messagebox
+from tkinter import messagebox, ttk
 
 from .config import TorConfig
 from .network import TorChatNode
-from .state import load_peers, save_peers
+from .state import clear_message_cache, load_message_cache, load_peers, save_message_cache, save_peers
 
 
 class XChatApp:
@@ -32,8 +32,13 @@ class XChatApp:
         self.peer_status: dict[str, bool] = {}
         self.peer_context_menu: tk.Menu | None = None
 
+        self.message_lock = threading.Lock()
+        self.message_history: list[str] = []
+        self.outbox: dict[str, list[str]] = {}
+
         self._load_icons()
         self._build_ui()
+        self._load_message_cache()
         self._load_saved_peers()
         self.root.after(150, self._poll_events)
         self.root.after(20, self._start_node)
@@ -115,6 +120,7 @@ class XChatApp:
         ttk.Label(top, textvariable=self.onion_id, foreground="#204a87").pack(side="left", padx=8)
         ttk.Button(top, text="Copy My ID", command=self._copy_my_id).pack(side="left", padx=(8, 0))
         ttk.Button(top, text="Refresh ID", command=self._refresh_my_id).pack(side="left", padx=(6, 0))
+        ttk.Button(top, text="Delete messages", command=self._delete_all_messages).pack(side="left", padx=(6, 0))
 
         body = ttk.Frame(self.root, padding=(10, 0, 10, 10))
         body.pack(fill="both", expand=True)
@@ -137,9 +143,7 @@ class XChatApp:
         self.peer_context_menu = tk.Menu(self.root, tearoff=0)
         self.peer_context_menu.add_command(label="Paste", command=self._paste_peer_id)
         self.peer_context_menu.add_command(label="Add", command=self._add_peer_from_entry_or_clipboard)
-        ttk.Button(peer_row, text="Add", command=self._add_peer_from_entry_or_clipboard).pack(
-            side="left", padx=(6, 0)
-        )
+        ttk.Button(peer_row, text="Add", command=self._add_peer_from_entry_or_clipboard).pack(side="left", padx=(6, 0))
 
         self.peer_tree = ttk.Treeview(left, columns=(), show="tree", selectmode="browse", height=20)
         self.peer_tree.pack(fill="both", expand=True)
@@ -147,9 +151,7 @@ class XChatApp:
         self.peer_tree.bind("<Delete>", lambda _event: self._remove_selected_peer())
         peer_actions = ttk.Frame(left)
         peer_actions.pack(fill="x", pady=(6, 0))
-        ttk.Button(peer_actions, text="Copy Peer ID", command=self._copy_selected_peer_id).pack(
-            side="left", fill="x", expand=True
-        )
+        ttk.Button(peer_actions, text="Copy Peer ID", command=self._copy_selected_peer_id).pack(side="left", fill="x", expand=True)
         ttk.Button(peer_actions, text="Delete Peer ID", command=self._remove_selected_peer).pack(
             side="left", fill="x", expand=True, padx=(6, 0)
         )
@@ -181,8 +183,18 @@ class XChatApp:
             self._persist_peers()
 
     def _persist_peers(self) -> None:
-        peers = sorted(self.peer_status.keys())
-        save_peers(self.node.config.peers_file, peers)
+        save_peers(self.node.config.peers_file, sorted(self.peer_status.keys()))
+
+    def _load_message_cache(self) -> None:
+        history, outbox = load_message_cache(self.node.config.message_cache_file)
+        self.message_history = history
+        self.outbox = outbox
+        for line in history:
+            self._append_chat(line, persist=False)
+
+    def _persist_message_cache(self) -> None:
+        with self.message_lock:
+            save_message_cache(self.node.config.message_cache_file, self.message_history, self.outbox)
 
     def _copy_to_clipboard(self, value: str, label: str) -> None:
         self.root.clipboard_clear()
@@ -275,6 +287,57 @@ class XChatApp:
             self.peer_status[canonical] = online
             self._update_peer_icon(canonical)
         self._persist_peers()
+        if online:
+            self._flush_outbox_async(canonical)
+
+    def _flush_outbox_async(self, peer: str) -> None:
+        threading.Thread(target=self._flush_outbox, args=(peer,), daemon=True).start()
+
+    def _flush_outbox(self, peer: str) -> None:
+        with self.message_lock:
+            pending = list(self.outbox.get(peer, []))
+        if not pending:
+            return
+
+        delivered = 0
+        for text in pending:
+            try:
+                self.node.send_chat(peer, text)
+            except Exception:
+                break
+            delivered += 1
+            self.events.put(("status", "", f"Delivered queued message to {peer}"))
+
+        if delivered <= 0:
+            return
+
+        with self.message_lock:
+            remaining = self.outbox.get(peer, [])
+            self.outbox[peer] = remaining[delivered:]
+            if not self.outbox[peer]:
+                self.outbox.pop(peer, None)
+        self._persist_message_cache()
+
+    def _queue_offline_message(self, peer: str, text: str) -> None:
+        with self.message_lock:
+            self.outbox.setdefault(peer, []).append(text)
+        self._persist_message_cache()
+
+    def _delete_all_messages(self) -> None:
+        confirmed = messagebox.askyesno(
+            "Delete messages",
+            "Delete all conversations, queued offline messages, and cached message data from this computer?",
+        )
+        if not confirmed:
+            return
+        with self.message_lock:
+            self.message_history.clear()
+            self.outbox.clear()
+        clear_message_cache(self.node.config.message_cache_file)
+        self.chat_box.configure(state="normal")
+        self.chat_box.delete("1.0", "end")
+        self.chat_box.configure(state="disabled")
+        self.status_label.configure(text="All conversations and cached/offline messages deleted")
 
     def _remove_selected_peer(self) -> None:
         peer = self._selected_peer()
@@ -292,7 +355,7 @@ class XChatApp:
     def _refresh_my_id(self) -> None:
         confirmed = messagebox.askyesno(
             "Refresh Tor ID",
-            "Generate a brand new Tor ID and make it permanent until next refresh?"
+            "Generate a brand new Tor ID and make it permanent until next refresh?",
         )
         if not confirmed:
             return
@@ -351,11 +414,15 @@ class XChatApp:
                 self.status_label.configure(text=payload)
         self.root.after(150, self._poll_events)
 
-    def _append_chat(self, line: str) -> None:
+    def _append_chat(self, line: str, persist: bool = True) -> None:
         self.chat_box.configure(state="normal")
         self.chat_box.insert("end", line + "\n")
         self.chat_box.see("end")
         self.chat_box.configure(state="disabled")
+        if persist:
+            with self.message_lock:
+                self.message_history.append(line)
+            self._persist_message_cache()
 
     def _ensure_peer(self, peer: str, online: bool = False) -> bool:
         if self.peer_tree is None:
@@ -399,13 +466,18 @@ class XChatApp:
             return
         if not text:
             return
+
         self.message_entry.delete(0, "end")
+        line = f"me → {peer}: {text}"
         try:
             self.node.send_chat(peer, text)
-            self._append_chat(f"me → {peer}: {text}")
-        except Exception as exc:
-            self.status_label.configure(text=f"Send failed: {exc}")
+            self._append_chat(line)
+        except Exception:
+            self._append_chat(f"{line} [queued for offline delivery]")
+            self._queue_offline_message(peer, text)
+            self.status_label.configure(text=f"Peer offline, message queued: {peer}")
 
     def shutdown(self) -> None:
         self._persist_peers()
+        self._persist_message_cache()
         self.node.stop()
