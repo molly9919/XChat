@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "xchat-tor"
-version = "0.1.0"
+version = "0.9b0"
 description = "Tor-based instant messenger inspired by TorChat"
 readme = "README.md"
 requires-python = ">=3.9"

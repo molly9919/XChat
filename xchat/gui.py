@@ -13,7 +13,7 @@ from .state import clear_message_cache, load_message_cache, load_peers, save_mes
 class XChatApp:
     def __init__(self, root: tk.Tk):
         self.root = root
-        self.root.title("XChat (Tor-style)")
+        self.root.title("XChat v 0.9 beta (Tor-style)")
         self.root.geometry("920x600")
         self.root.configure(bg="#d8d8d8")
 
