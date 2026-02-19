@@ -32,18 +32,13 @@ class XChatApp:
         self.peer_status: dict[str, bool] = {}
         self.peer_context_menu: tk.Menu | None = None
 
-        self.message_lock = threading.RLock()
+        self.message_lock = threading.Lock()
         self.message_history: list[str] = []
         self.outbox: dict[str, list[str]] = {}
 
         self._load_icons()
         self._build_ui()
-        try:
-            self._load_message_cache()
-        except Exception:
-            clear_message_cache(self.node.config.message_cache_file)
-            self.message_history = []
-            self.outbox = {}
+        self._load_message_cache()
         self._load_saved_peers()
         self.root.after(150, self._poll_events)
         self.root.after(20, self._start_node)
@@ -192,9 +187,7 @@ class XChatApp:
 
     def _persist_message_cache(self) -> None:
         with self.message_lock:
-            history_copy = list(self.message_history)
-            outbox_copy = {peer: list(messages) for peer, messages in self.outbox.items()}
-        save_message_cache(self.node.config.message_cache_file, history_copy, outbox_copy)
+            save_message_cache(self.node.config.message_cache_file, self.message_history, self.outbox)
 
     def _copy_to_clipboard(self, value: str, label: str) -> None:
         self.root.clipboard_clear()
