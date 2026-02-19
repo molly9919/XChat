@@ -6,4 +6,5 @@ Terminal=false
 Type=Application
 Categories=Network;InstantMessaging;
 StartupNotify=true
-Icon=xchat-tor
+StartupWMClass=XChat
+Icon=/usr/share/pixmaps/xchat-tor.xpm

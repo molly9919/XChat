@@ -16,6 +16,7 @@ class XChatApp:
         self.root.title("XChat v 0.9 beta (Tor-style)")
         self.root.geometry("920x600")
         self.root.configure(bg="#d8d8d8")
+        self.root.wm_class("xchat", "XChat")
 
         self.events: queue.Queue[tuple[str, str, str]] = queue.Queue()
 
