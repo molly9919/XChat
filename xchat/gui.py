@@ -16,7 +16,6 @@ class XChatApp:
         self.root.title("XChat v 0.9 beta (Tor-style)")
         self.root.geometry("920x600")
         self.root.configure(bg="#d8d8d8")
-        self.root.wm_class("xchat", "XChat")
 
         self.events: queue.Queue[tuple[str, str, str]] = queue.Queue()
 
@@ -49,13 +48,6 @@ class XChatApp:
         self.root.after(150, self._poll_events)
         self.root.after(20, self._start_node)
 
-    @staticmethod
-    def _make_circle_icon(size: int, fill_color: str) -> tk.PhotoImage:
-        image = tk.PhotoImage(width=size, height=size)
-        center = (size - 1) / 2
-        radius = (size - 2) / 2
-        for y in range(size):
-            row_colors = []
             for x in range(size):
                 dx = x - center
                 dy = y - center
