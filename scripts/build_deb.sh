@@ -68,6 +68,9 @@ if [[ -n "$missing" ]]; then
   fi
 fi
 
+echo "Running Python syntax check..."
+python3 -m compileall -q xchat
+
 echo "Building Debian package for xchat-tor..."
 dpkg-buildpackage -us -uc -b
 
