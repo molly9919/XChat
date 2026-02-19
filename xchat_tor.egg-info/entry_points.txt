@@ -1,0 +1,2 @@
+[console_scripts]
+xchat = xchat.main:main

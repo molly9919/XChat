@@ -1,0 +1,9 @@
+[Desktop Entry]
+Name=XChat (Tor Messenger)
+Comment=Tor-based instant messenger inspired by TorChat
+Exec=xchat
+Terminal=false
+Type=Application
+Categories=Network;InstantMessaging;
+StartupNotify=true
+Icon=xchat-tor

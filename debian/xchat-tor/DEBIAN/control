@@ -1,0 +1,10 @@
+Package: xchat-tor
+Version: 0.9~beta1-1
+Architecture: all
+Maintainer: XChat Contributors <noreply@example.com>
+Installed-Size: 75
+Depends: python3-socks, python3-stem, python3:any, python3-tk, tor
+Section: net
+Priority: optional
+Description: Tor-based instant messenger inspired by TorChat
+ A simple Python3 GUI messenger that routes communication over Tor onion services.
