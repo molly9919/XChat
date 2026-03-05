@@ -47,6 +47,17 @@ class TorChatNode:
         self._tor_process: Popen[bytes] | None = None
         self.own_onion: str | None = None
 
+    def disconnect_peer(self, onion: str) -> None:
+        address = onion.removesuffix(".onion") + ".onion"
+        with self._conn_lock:
+            conn = self._connections.pop(address, None)
+        if conn is not None:
+            conn.close()
+
+    def restart_peer(self, onion: str) -> None:
+        self.disconnect_peer(onion)
+        self.connect_peer(onion)
+
     def start(self) -> None:
         if self.config.launch_private_tor:
             self._start_private_tor()
@@ -334,4 +345,3 @@ class TorChatNode:
                 if self._connections.get(peer_id) is conn:
                     self._connections.pop(peer_id, None)
             conn.close()
-

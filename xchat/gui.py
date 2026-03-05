@@ -155,6 +155,14 @@ class XChatApp:
         ttk.Button(peer_actions, text="Delete Peer ID", command=self._remove_selected_peer).pack(
             side="left", fill="x", expand=True, padx=(6, 0)
         )
+        peer_secondary_actions = ttk.Frame(left)
+        peer_secondary_actions.pack(fill="x", pady=(6, 0))
+        ttk.Button(peer_secondary_actions, text="Restart peers", command=self._restart_peers).pack(
+            side="left", fill="x", expand=True
+        )
+        ttk.Button(peer_secondary_actions, text="About XChat", command=self._open_about_window).pack(
+            side="left", fill="x", expand=True, padx=(6, 0)
+        )
 
         right = ttk.Frame(body)
         right.pack(side="left", fill="both", expand=True, padx=(10, 0))
@@ -223,6 +231,50 @@ class XChatApp:
             messagebox.showwarning("No peer selected", "Select a peer ID to copy.")
             return
         self._copy_to_clipboard(peer, "peer Tor ID")
+
+    def _restart_peers(self) -> None:
+        if not self.peer_status:
+            self.status_label.configure(text="No peers to restart")
+            return
+        threading.Thread(target=self._restart_peers_async, daemon=True).start()
+
+    def _restart_peers_async(self) -> None:
+        peers = sorted(self.peer_status.keys())
+        self.events.put(("status", "", "Restarting peer connections…"))
+        for peer in peers:
+            self.events.put(("status", peer, "offline"))
+            try:
+                self.node.restart_peer(peer)
+            except Exception as exc:
+                self.events.put(("status", peer, "offline"))
+                self.events.put(("status", "", f"Restart failed for {peer}: {exc}"))
+                continue
+            self.events.put(("status", peer, "online"))
+        self.events.put(("status", "", "Peer restart complete"))
+
+    def _open_about_window(self) -> None:
+        about = tk.Toplevel(self.root)
+        about.title("About XChat")
+        about.configure(bg="#d8d8d8")
+        about.resizable(False, False)
+
+        frame = ttk.Frame(about, padding=12)
+        frame.pack(fill="both", expand=True)
+        ttk.Label(frame, text="XChat", font=("Sans", 12, "bold")).pack(anchor="w")
+        ttk.Label(frame, text="Developed and maintained by Molly9 and Program9.click").pack(anchor="w", pady=(4, 10))
+
+        self._add_about_field(frame, "Contact email", "ivan@program9.click")
+        self._add_about_field(frame, "Bitcoin donation", "bc1q9gsagqusw4svrnglmxxgquykrq5k7z5ddh6dk0")
+        self._add_about_field(frame, "Litecoin donation", "ltc1qwfrx2r5cc0q3u7a6l7waqge3hapx9vecau8ppf")
+
+    def _add_about_field(self, parent: ttk.Frame, label: str, value: str) -> None:
+        row = ttk.Frame(parent)
+        row.pack(fill="x", pady=(0, 6))
+        ttk.Label(row, text=f"{label}:").pack(anchor="w")
+        entry = ttk.Entry(row)
+        entry.insert(0, value)
+        entry.configure(state="readonly")
+        entry.pack(fill="x", expand=True)
 
     def _paste_peer_id(self) -> None:
         try:
@@ -407,6 +459,11 @@ class XChatApp:
                 self._append_chat(f"{who}: {payload}")
                 self._set_peer_online(who, True)
             else:
+                if who and payload in {"online", "offline"}:
+                    self._set_peer_online(who, payload == "online")
+                    status_text = "online" if payload == "online" else "offline"
+                    self.status_label.configure(text=f"{who} is {status_text}")
+                    continue
                 if payload.startswith("Peer online: "):
                     self._set_peer_online(payload.removeprefix("Peer online: ").strip(), True)
                 elif payload.startswith("Connection dropped: "):
