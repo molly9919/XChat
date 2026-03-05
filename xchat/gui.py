@@ -235,25 +235,38 @@ class XChatApp:
         self._copy_to_clipboard(peer, "peer Tor ID")
 
     def _restart_peers(self) -> None:
-        if not self.peer_status:
-            self.status_label.configure(text="No peers to restart")
-            return
         threading.Thread(target=self._restart_peers_async, daemon=True).start()
 
     def _restart_peers_async(self) -> None:
         peers = sorted(self.peer_status.keys())
-        self.events.put(("status", "", "Restarting peer connections…"))
+        self.events.put(("status", "", "Restarting local peer…"))
+
+        for peer in peers:
+            self._ignore_dropped_until[peer] = time.monotonic() + 7.0
+
+        try:
+            own_peer = self.node.restart_local_peer()
+        except Exception as exc:
+            self.events.put(("status", "", f"Local peer restart failed: {exc}"))
+            return
+
+        self.events.put(("status", "", f"Local peer restarted: {own_peer}"))
+        self.events.put(("identity", "", own_peer))
+
+        if not peers:
+            self.events.put(("status", "", "Local peer restart complete"))
+            return
+
+        self.events.put(("status", "", "Refreshing peer statuses…"))
         for peer in peers:
             self._ignore_dropped_until[peer] = time.monotonic() + 5.0
             try:
-                self.node.restart_peer(peer)
-            except Exception as exc:
+                self.node.connect_peer(peer)
+            except Exception:
                 self.events.put(("status", peer, "offline"))
-                self.events.put(("status", "", f"Restart failed for {peer}: {exc}"))
                 continue
             self.events.put(("status", peer, "online"))
-            self.events.put(("status", "", f"Peer refreshed: {peer}"))
-        self.events.put(("status", "", "Peer restart complete"))
+        self.events.put(("status", "", "Local peer and peer list refresh complete"))
 
     def _open_about_window(self) -> None:
         about = tk.Toplevel(self.root)
@@ -465,6 +478,8 @@ class XChatApp:
             if event == "msg":
                 self._append_chat(f"{who}: {payload}")
                 self._set_peer_online(who, True)
+            elif event == "identity":
+                self.onion_id.set(payload)
             else:
                 if who and payload in {"online", "offline"}:
                     self._set_peer_online(who, payload == "online")

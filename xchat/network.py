@@ -58,6 +58,21 @@ class TorChatNode:
         self.disconnect_peer(onion)
         self.connect_peer(onion)
 
+    def restart_local_peer(self) -> str:
+        if not self._listener:
+            raise RuntimeError("Node is not started")
+
+        with self._conn_lock:
+            for conn in self._connections.values():
+                conn.close()
+            self._connections.clear()
+
+        self._publish_onion_service(force_new=False)
+        if not self.own_onion:
+            raise RuntimeError("Local peer restart failed")
+        self.on_status(f"Local peer restarted: {self.own_onion}")
+        return self.own_onion
+
     def start(self) -> None:
         if self.config.launch_private_tor:
             self._start_private_tor()
