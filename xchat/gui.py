@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import queue
 import threading
+import time
 import tkinter as tk
 from tkinter import messagebox, ttk
 
@@ -30,6 +31,7 @@ class XChatApp:
         self.peer_entry: ttk.Entry | None = None
         self.peer_tree: ttk.Treeview | None = None
         self.peer_status: dict[str, bool] = {}
+        self._ignore_dropped_until: dict[str, float] = {}
         self.peer_context_menu: tk.Menu | None = None
 
         self.message_lock = threading.Lock()
@@ -242,7 +244,7 @@ class XChatApp:
         peers = sorted(self.peer_status.keys())
         self.events.put(("status", "", "Restarting peer connections…"))
         for peer in peers:
-            self.events.put(("status", peer, "offline"))
+            self._ignore_dropped_until[peer] = time.monotonic() + 5.0
             try:
                 self.node.restart_peer(peer)
             except Exception as exc:
@@ -250,6 +252,7 @@ class XChatApp:
                 self.events.put(("status", "", f"Restart failed for {peer}: {exc}"))
                 continue
             self.events.put(("status", peer, "online"))
+            self.events.put(("status", "", f"Peer refreshed: {peer}"))
         self.events.put(("status", "", "Peer restart complete"))
 
     def _open_about_window(self) -> None:
@@ -450,6 +453,10 @@ class XChatApp:
         self.events.put(("status", "", status))
 
     def _poll_events(self) -> None:
+        now = time.monotonic()
+        self._ignore_dropped_until = {
+            peer: deadline for peer, deadline in self._ignore_dropped_until.items() if deadline > now
+        }
         while True:
             try:
                 event, who, payload = self.events.get_nowait()
@@ -467,7 +474,14 @@ class XChatApp:
                 if payload.startswith("Peer online: "):
                     self._set_peer_online(payload.removeprefix("Peer online: ").strip(), True)
                 elif payload.startswith("Connection dropped: "):
-                    self._set_peer_online(payload.removeprefix("Connection dropped: ").strip(), False)
+                    dropped_peer = self._canonical_peer_id(payload.removeprefix("Connection dropped: ").strip())
+                    if not dropped_peer:
+                        self.status_label.configure(text=payload)
+                        continue
+                    if self._ignore_dropped_until.get(dropped_peer, 0.0) > time.monotonic():
+                        self.status_label.configure(text=f"Refreshing peer: {dropped_peer}")
+                        continue
+                    self._set_peer_online(dropped_peer, False)
                 self.status_label.configure(text=payload)
         self.root.after(150, self._poll_events)
 
