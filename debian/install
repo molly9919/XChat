@@ -1,3 +1,4 @@
 README.md usr/share/doc/xchat-tor/
 debian/xchat-tor.desktop usr/share/applications/
 debian/xchat-tor.xpm usr/share/pixmaps/xchat-tor.xpm
+debian/xchat-tor.svg usr/share/icons/hicolor/scalable/apps/xchat-tor.svg

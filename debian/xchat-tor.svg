@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256" role="img" aria-label="XChat icon">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#343446"/>
+      <stop offset="100%" stop-color="#262632"/>
+    </linearGradient>
+  </defs>
+  <rect x="12" y="12" width="232" height="232" rx="56" fill="url(#bg)"/>
+  <g stroke="#8f88ad" stroke-width="10" stroke-linecap="round" fill="none">
+    <path d="M58 84 L126 62 L189 110 L145 188 L80 168 Z"/>
+    <path d="M126 62 L145 188"/>
+    <path d="M58 84 L80 168"/>
+    <path d="M189 110 L80 168"/>
+  </g>
+  <g>
+    <circle cx="58" cy="84" r="17" fill="#82bac8"/>
+    <circle cx="126" cy="62" r="17" fill="#ea8f82"/>
+    <circle cx="189" cy="110" r="17" fill="#f1ca80"/>
+    <circle cx="80" cy="168" r="17" fill="#58a0bf"/>
+    <circle cx="145" cy="188" r="17" fill="#8bbfcd"/>
+    <circle cx="128" cy="126" r="17" fill="#e86579"/>
+  </g>
+</svg>

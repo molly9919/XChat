@@ -103,10 +103,21 @@ class XChatApp:
         return image
 
     def _load_icons(self) -> None:
-        self.icon_app = self._make_app_icon()
+        self.icon_app = self._make_app_icon(64)
+        self.icon_app_48 = self._make_app_icon(48)
+        self.icon_app_32 = self._make_app_icon(32)
+        self.icon_app_24 = self._make_app_icon(24)
+        self.icon_app_16 = self._make_app_icon(16)
         self.icon_online = self._make_circle_icon(14, "#56d448")
         self.icon_offline = self._make_circle_icon(14, "#ef5350")
-        self.root.iconphoto(True, self.icon_app)
+        self.root.iconphoto(
+            True,
+            self.icon_app,
+            self.icon_app_48,
+            self.icon_app_32,
+            self.icon_app_24,
+            self.icon_app_16,
+        )
 
     def _build_ui(self) -> None:
         style = ttk.Style()
@@ -263,7 +274,7 @@ class XChatApp:
         ttk.Label(frame, text="XChat", font=("Sans", 12, "bold")).pack(anchor="w")
         ttk.Label(frame, text="Developed and maintained by Molly9 and Program9.click").pack(anchor="w", pady=(4, 10))
 
-        self._add_about_field(frame, "Contact email", "ivan@program9.click")
+        self._add_about_field(frame, "Contact email", "contact@program9.click")
         self._add_about_field(frame, "Bitcoin donation", "bc1q9gsagqusw4svrnglmxxgquykrq5k7z5ddh6dk0")
         self._add_about_field(frame, "Litecoin donation", "ltc1qwfrx2r5cc0q3u7a6l7waqge3hapx9vecau8ppf")
 
