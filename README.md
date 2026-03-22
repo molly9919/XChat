@@ -4,6 +4,9 @@ XChat is a lightweight Python 3 instant messenger inspired by TorChat.
 It uses Tor hidden services for incoming connections and Tor SOCKS for outgoing
 peer-to-peer chat messages.
 
+<img width="920" height="677" alt="Screenshot from 2026-03-22 21-33-39" src="https://github.com/user-attachments/assets/f753f764-c96b-4178-a25d-bfa4fc69fc7c" />
+
+
 ## Features
 
 - Persistent Tor ID (same onion each launch) with manual **Refresh ID** option when you want a new one.
